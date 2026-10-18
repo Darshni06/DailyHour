@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function profilePath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasProfile() { return signedIn() && exists(profilePath()); }
+    function myProfile() { return get(profilePath()).data; }
+    function isActive() { return hasProfile() && myProfile().active == true; }
+    function isAdmin() { return isActive() && myProfile().role == 'admin'; }
+    function isStaff() { return isActive() && (myProfile().role == 'admin' || myProfile().role == 'coordinator'); }
+
+    // People. The first admin is created by hand in the Firebase console.
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isActive());
+      allow list: if isActive();
+      allow create: if isAdmin() || (isStaff() && request.resource.data.role == 'teacher');
+      allow update: if isAdmin() || (isStaff() && resource.data.role == 'teacher' && request.resource.data.role == 'teacher');
+      allow delete: if false;
+    }
+
+    // One document per class. The weekly timetable lives inside it as "slots".
+    match /classes/{id} {
+      allow read: if isActive();
+      allow write: if isStaff();
+    }
+
+    match /settings/{id} {
+      allow read: if isActive();
+      allow write: if isStaff();
+    }
+
+    match /absences/{id} {
+      allow read: if isActive();
+      allow write: if isStaff();
+    }
+
+    match /substitutions/{id} {
+      allow read: if isActive();
+      allow write: if isStaff();
+    }
+
+    // Secret token for each day's shareable link (staff only).
+    match /sheetMeta/{id} {
+      allow read, write: if isStaff();
+    }
+
+    // Public read-only copy of a day's cover list. Reachable only if you know the full link.
+    match /publishedSheets/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if isStaff();
+    }
+  }
+}
