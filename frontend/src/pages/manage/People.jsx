@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../firebase.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useData } from "../../context/DataContext.jsx";
@@ -44,6 +44,16 @@ export default function People() {
     }
   }
 
+  async function remove(u) {
+    if (!window.confirm(`Delete ${u.name}? They lose access straight away. Their lessons stay in the timetable as "Former teacher" until you reassign them.`)) return;
+    try {
+      await deleteDoc(doc(db, "users", u.id));
+      toast(`${u.name} deleted`);
+    } catch (e) {
+      toast(friendlyAuthError(e));
+    }
+  }
+
   return (
     <div>
       <div className="actions">
@@ -66,6 +76,7 @@ export default function People() {
                 <button className="btn small ghost" onClick={() => setActive(u, u.active === false)}>
                   {u.active === false ? "Switch on" : "Switch off"}
                 </button>
+                <button className="btn small ghost danger" onClick={() => remove(u)}>Delete</button>
               </div>
             )}
           </li>

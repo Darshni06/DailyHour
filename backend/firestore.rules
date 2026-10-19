@@ -16,7 +16,7 @@ service cloud.firestore {
       allow list: if isActive();
       allow create: if isAdmin() || (isStaff() && request.resource.data.role == 'teacher');
       allow update: if isAdmin() || (isStaff() && resource.data.role == 'teacher' && request.resource.data.role == 'teacher');
-      allow delete: if false;
+      allow delete: if (isAdmin() && uid != request.auth.uid) || (isStaff() && resource.data.role == 'teacher');
     }
 
     // One document per class. The weekly timetable lives inside it as "slots".
